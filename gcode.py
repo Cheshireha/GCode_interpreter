@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+#######################################################
 import wiringpi as gpio
 from wiringpi import GPIO
 import math
@@ -54,9 +54,9 @@ y_units = float(Y_STEPS_PER_INCH)
 z_units = float(Z_STEPS_PER_INCH)
 curve_section = CURVE_SECTION_INCHES
 
-x_direction = 1
-y_direction = 1
-z_direction = 1
+#x_direction = 0
+#y_direction = 0
+#z_direction = 0
 
 feedrate = 0.0#梯形变速的匀速阶段进给速度
 feedrate_micros = 0#每一个脉冲间隔时间
@@ -68,6 +68,15 @@ fpz=0
 
 
 #---------定义结构体---------#
+
+class directions:
+	def __init__(self, xpart0,ypart0,zpart0):
+		self.x = xpart0
+		self.y = ypart0
+		self.z = zpart0
+
+direction = directions(0,0,0)
+
 class currentunits:
 	def __init__(self, xpart1,ypart1,zpart1):
 		self.x = xpart1
@@ -197,14 +206,14 @@ def calculate_deltas():
 	delta_steps.z = long(abs(target_steps.z - current_steps.z))
 	
 	#what is our direction
-	x_direction = int(target_units.x >= current_units.x)
-	y_direction = int(target_units.y >= current_units.y)
-	z_direction = int(target_units.z >= current_units.z)
+	direction.x = int(target_units.x >= current_units.x)
+	direction.y = int(target_units.y >= current_units.y)
+	direction.z = int(target_units.z >= current_units.z)
 
 	#set our direction pins as well
-	gpio.digitalWrite(X_DIR_PIN,x_direction)
-	gpio.digitalWrite(Y_DIR_PIN,y_direction)
-	gpio.digitalWrite(Z_DIR_PIN,z_direction)
+	gpio.digitalWrite(X_DIR_PIN,direction.x)
+	gpio.digitalWrite(Y_DIR_PIN,direction.y)
+	gpio.digitalWrite(Z_DIR_PIN,direction.z)
 
 
 def to_steps(steps_per_unit,units):
@@ -276,9 +285,9 @@ def dda_move(micro_delay):###micro_delay脉冲之间的间隔时间
 
 	calculate_deltas()
 
-	gpio.digitalWrite(X_DIR_PIN,x_direction) #pin25输出为高电平
-	gpio.digitalWrite(Y_DIR_PIN,y_direction) #pin25输出为高电平
-	gpio.digitalWrite(Z_DIR_PIN,z_direction) #pin25输出为高电平
+	gpio.digitalWrite(X_DIR_PIN,direction.x) #pin25输出为高电平
+	gpio.digitalWrite(Y_DIR_PIN,direction.y) #pin25输出为高电平
+	gpio.digitalWrite(Z_DIR_PIN,direction.z) #pin25输出为高电平
 
 	max_delta = max(delta_steps.x, delta_steps.y)##max_delta是需要走的最多步数，delta_steps需要走的步数
 	max_delta = max(delta_steps.z, max_delta)
@@ -315,23 +324,24 @@ def dda_move(micro_delay):###micro_delay脉冲之间的间隔时间
 		k = float(y_target)/float(x_target)
 		#k=1
 		while True:
-			###x_can_step = can_step(X_MIN_PIN, X_MAX_PIN, current_steps.x, target_steps.x, x_direction)
-			x_can_step = can_step(0, 0, x_start, x_target, x_direction)
-			y_can_step = can_step(0, 0, y_start, y_target, y_direction)
+			###x_can_step = can_step(X_MIN_PIN, X_MAX_PIN, current_steps.x, target_steps.x, direction.x)
+			x_can_step = can_step(0, 0, x_start, x_target, direction.x)
+			y_can_step = can_step(0, 0, y_start, y_target, direction.y)
 				
 			if (y_start >= float(x_start*k)) and x_can_step:
-				gpio.digitalWrite(X_DIR_PIN,x_direction)
-				print 'x_direction',x_direction
+				gpio.digitalWrite(X_DIR_PIN,direction.x)
+				print '插补direction.x=',direction.x
 				do_step(X_STEP_PIN)
 				x_start = x_start + 1
 
 				if x_start-x_target==0:
 					x_start = x_target
 					y_start = y_target
-				print x_start,y_start
+				print '插补x'
 
 			elif (y_start < float(x_start*k)) and y_can_step:
-				gpio.digitalWrite(Y_DIR_PIN,y_direction)
+				gpio.digitalWrite(Y_DIR_PIN,direction.y)
+				print '插补direction.y=',direction.y
 				do_step(Y_STEP_PIN)
 				y_start = y_start + 1
 
@@ -355,12 +365,12 @@ def dda_move(micro_delay):###micro_delay脉冲之间的间隔时间
 		x_target=abs(target_steps.x-current_steps.x)
 		x_start=0
 		while True:
-			gpio.digitalWrite(X_DIR_PIN,x_direction)
+			gpio.digitalWrite(X_DIR_PIN,direction.x)
 			do_step(X_STEP_PIN)
 			x_start = x_start + 1
 			if abs(x_start-x_target)<1:
 					x_start = x_target
-			x_can_step = can_step(0, 0, x_start, x_target, x_direction)
+			x_can_step = can_step(0, 0, x_start, x_target, direction.x)
 
 			if milli_delay > 0:
 				gpio.delay(int(milli_delay))###毫秒
@@ -376,12 +386,12 @@ def dda_move(micro_delay):###micro_delay脉冲之间的间隔时间
 		y_target=abs(target_steps.y-current_steps.y)
 		y_start=0
 		while True:
-			gpio.digitalWrite(Y_DIR_PIN,y_direction)
+			gpio.digitalWrite(Y_DIR_PIN,direction.y)
 			do_step(Y_STEP_PIN)
 			y_start = y_start + 1
 			if abs(y_start-y_target)<1:
 					y_start = y_target
-			y_can_step = can_step(Y_MIN_PIN, Y_MAX_PIN, y_start, y_target, y_direction)
+			y_can_step = can_step(Y_MIN_PIN, Y_MAX_PIN, y_start, y_target, direction.y)
 
 			if milli_delay > 0:
 				gpio.delay(int(milli_delay))###毫秒
@@ -397,12 +407,12 @@ def dda_move(micro_delay):###micro_delay脉冲之间的间隔时间
 		z_target=abs(target_steps.z-current_steps.z)
 		z_start=0
 		while True:
-			gpio.digitalWrite(Z_DIR_PIN,z_direction)
+			gpio.digitalWrite(Z_DIR_PIN,direction.z)
 			do_step(Z_STEP_PIN)
 			z_start = z_start + 1
 			if abs(z_start-z_target)<1:
 					z_start = z_target
-			z_can_step = can_step(Z_MIN_PIN, Z_MAX_PIN, z_start, z_target, z_direction)
+			z_can_step = can_step(Z_MIN_PIN, Z_MAX_PIN, z_start, z_target, direction.z)
 
 			if milli_delay > 0:
 				gpio.delay(int(milli_delay))###毫秒
@@ -492,10 +502,12 @@ while True:
 
 	if line.find('X')!=-1:		##找到X则执行
 		fpx = getcode('X',line)
+		print 'fpx=',fpx
 	else:						##没找到则执行
 		fpx = current_units.x
 	if line.find('Y')!=-1:
 		fpy = getcode('Y',line)
+		print 'fpy=',fpy
 	else:
 		fpy = current_units.y
 	if line.find('Z')!=-1:
@@ -523,6 +535,7 @@ while True:
 		#	fpx = getcode('X',line) + current_units.x
 		#	fpy = getcode('Y',line) + current_units.y
 		#	fpz = getcode('Z',line) + current_units.z
+		print 'start_direction.x=',direction.x,'start_direction.y=',direction.y
 
 		if code==0:
 			set_target(fpx,fpy,fpz)
@@ -531,16 +544,15 @@ while True:
 
 		elif code==1:   ##how fast do we move?
 			set_target(fpx,fpy,fpz)
-			print 'fpx'
-			print fpx
+			print 'current_units.x=',current_units.x,'target_units.x=',target_units.x
+			print 'current_units.y=',current_units.y,'target_units.y=',target_units.y
+			print 'target_direction.x=',direction.x,'targrt_direction.y=',direction.y
 
 			feedrate = getcode('F', line)
-			print 'feedrate'
-			print feedrate
+			print 'feedrate=',feedrate
 					
 			feedrate_micros = calculate_feedrate_delay(feedrate)###脉冲之间的间隔时间
-			print 'feedrate_micros'
-			print feedrate_micros
+			print 'feedrate_micros=',feedrate_micros
 
 #			if feedrate > 0:
 #				feedrate_micros = calculate_feedrate_delay(feedrate)
@@ -551,7 +563,7 @@ while True:
 #				print feedrate_micros
 
 			dda_move(feedrate_micros)
-			print('G1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+			print('G1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
 
 		##else:
 		##	if feedrate > 0:
